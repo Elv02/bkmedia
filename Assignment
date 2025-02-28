@@ -1,0 +1,33 @@
+Inspired by rugged backpacks, it quickly became the trusted guardian of digital memories.
+
+Prerequisites: 
+A Vagrant VM with local folder syncing capability set up.
+
+Activity 1:
+Objective: Create a media files backup service.
+Task: Develop a shell script named `bkmedia.sh` to manage backups of media files from multiple sources.
+Details:
+    A file named `locations.cfg` will store server locations in the format: `[user]@[server host]:[path]`.
+
+Script functionalities:
+Running without arguments: Display configured locations, preceded by line numbers.
+Backup:
+Run with `-B`: Initiates backups for all locations.
+Use `-L n` with `-B`: Initiates backup only for the specific location by line number `n`.
+Restore:
+Run with `-R n`: Indicates which backup (from the most recent) to restore.
+Use `-L n` with `-R`: Designates which location to restore from.
+Note on SSH keys: Ensure the executing user's public SSH key is set up on servers you intend to back up.
+ 
+Activity 2 (Optional): 
+Objective: Enhance the backup service in terms of performance and cost-efficiency.
+Task: Propose design alterations to the existing setup. Address performance bottlenecks and devise strategies to reduce data storage costs.
+Details: 
+    - Consider backup speed optimizations.
+    - Explore data compression, deduplication, or other data optimization techniques.
+    - Outline the specific changes to be integrated into your current solution based on your new design.
+ 
+Submission: Share your scripts and design documents through Teams.  Documents and Code should come via GitHub links.
+All open questions can be asked in our weekly sessions. All other questions can be asked to your assigned senior apprentice over teams.
+This is not intended to work perfectly as described, adapt!
+Let's innovate and create an efficient backup service! 🚀

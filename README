@@ -1,0 +1,8 @@
+# BKMedia - The Latest and Greatest in Backup Utilities!
+## Description
+BKMedia was developed as part of an ongoing continous education effort.  It allows the user to configure mutliple remote locations to backup and restore from all in a single BASH script!
+
+## Requirements
+  - MacOS/Linux (Any Unix based environment, really)
+  - RSYNC (Install w/ your package manager of choice)
+  - SSH Keys configured on the host for your remote servers
