@@ -5,4 +5,12 @@ BKMedia was developed as part of an ongoing continous education effort.  It allo
 ## Requirements
   - MacOS/Linux (Any Unix based environment, really)
   - RSYNC (Install w/ your package manager of choice)
-  - SSH Keys configured on the host for your remote servers
+  - SSH Key(s) configured on the host for your remote servers
+
+## How to Run
+
+TODO: Finish writeup on this
+
+## Notes
+
+TODO: Resolve ongoing broken pipe issue with vagrant hosts.  Possible solution to add retry mechanism to any rsync or scp call?
