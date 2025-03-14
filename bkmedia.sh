@@ -1,7 +1,5 @@
 #!/bin/bash
 
-# TODO: Fix bug in alien scan if no alien files present!
-
 # Global Vars
 input="./locations.cfg"
 line_number=0
@@ -187,7 +185,7 @@ process_locations() {
         ((line_number++))
         if $backup_flag; then
             if [ -z "$location_number" ] || [ "$location_number" -eq "$line_number" ]; then
-            	# wake_up $line
+            	wake_up $line
             	alien_scan "$line_number" "$line" "backup"
                 backup_location "$line_number" "$line"
             fi
@@ -197,7 +195,7 @@ process_locations() {
                 exit 1
             else
                 if [ "$location_number" -eq "$line_number" ]; then
-                	# wake_up $line
+                	wake_up $line
                     restore_location "$line_number" "$line" "$restore_number"
                     alien_scan "$line_number" "$line" "restore"
                     exit 0 # Exit after restore (only one restore per run allowed).
