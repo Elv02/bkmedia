@@ -11,7 +11,6 @@ backup_flag=false
 OPTSTRING="BR:L:"
 
 # Function to ensure connection is awake
-# TODO: FIX THIS FUNCTION
 #   $1 - Location Path
 wake_up(){
 	host_only=${1%:*}
@@ -20,10 +19,18 @@ wake_up(){
 
 	while (( remaining_attemps-- > 0 ))
 	do
-		[[ $(ssh $host_only) == 0 ]] && break
+		# Attempt simple SSH command with immediate return
+		ssh -o COnnectTimeout=5 "$host_only" "exit 0" >/dev/null 2>&1
+		if [ $? -eq 0 ]; then
+			echo "Host $host_only is now awake."
+			return 0
+		fi
+		echo "Retrying connection to $host_only..."
 		sleep 5
 	done
-	echo "Host $host_only is now awake."
+
+	echo "ERROR: Failed to connect to $host_only after multiple attempts."
+	return 1
 }
 
 # Function to connect to remote and detect/process Alien (.xyzar) files
@@ -31,30 +38,72 @@ wake_up(){
 #   $2 - Location Path
 #   $3 - Compression Flag
 alien_scan() {
-	echo "$1 - $2 ($3)"
-	host_only=${2%:*}
-	echo "Scanning remote ${host_only} for alien files."
-	ssh $host_only << EOF
-		shopt -s globstar
-		shopt -s nullglob
-		echo "Processing alien files."
-		pattern="**/*.xyzar"
-		if [[ "$3" == "restore" ]]; then
-			pattern="\${pattern}.tar"
-		fi
-		for file in \${pattern}; do
-			echo "Processing alien record \$file"
-			if [[ "$3" == "backup" ]]; then
-				tar -czf "\$file.tar" "\$file"
-			elif [[ "$3" == "restore" ]]; then
-				tar -xvzf "\$file"
-			fi
-		done
-EOF
-	# TODO: Update daily log!
-	echo "Daily log updated."
+    local loc_num="$1"
+    local loc_path="$2"
+    local mode="$3"
 
-	echo "Scan complete."
+    local host_only=${loc_path%:*}
+
+    echo "Alien scan on location #$loc_num: $loc_path ($mode)"
+
+    # If in backup mode, set up local logging
+    local log_file=""
+    if [[ "$mode" == "backup" ]]; then
+        mkdir -p "alien_logs"
+        log_file="alien_logs/alien_log_$(date +%F).log"
+        echo "Alien file details will be appended to: $log_file"
+    fi
+
+    # Build the remote script as a heredoc
+    local remote_script
+    if [[ "$mode" == "backup" ]]; then
+        remote_script='
+            shopt -s globstar nullglob
+            files=( **/*.xyzar )
+            if [ ${#files[@]} -eq 0 ]; then
+                exit 0
+            fi
+            for file in "${files[@]}"; do
+                old_size=$(stat -c %s "$file" 2>/dev/null || echo 0)
+                tar -czf "$file.tar" "$file"
+                new_size=$(stat -c %s "$file.tar" 2>/dev/null || echo 0)
+                echo "<$file> OriginalSize=$old_size CompressedSize=$new_size"
+            done
+        '
+    else
+        # Assume "restore"
+        remote_script='
+            shopt -s globstar nullglob
+            files=( **/*.xyzar.tar )
+            if [ ${#files[@]} -eq 0 ]; then
+                exit 0
+            fi
+            for file in "${files[@]}"; do
+                tar -xvzf "$file"
+                echo "RESTORED: $file"
+            done
+        '
+    fi
+
+    # Run the remote script over SSH
+    if [[ -n "$log_file" ]]; then
+        # 1) SSH to remote host
+        # 2) Pipe its output into a while-read loop
+        # 3) Prepend server info + timestamp
+        # 4) Append to the log
+        ssh "$host_only" bash -s <<<"$remote_script" \
+        | while IFS= read -r line; do
+            echo "[$(date +%F_%T)] [$host_only] $line"
+        done | tee -a "$log_file"
+    else
+        # Not in backup mode => no log file
+        ssh "$host_only" bash -s <<<"$remote_script" \
+        | while IFS= read -r line; do
+            echo "[$(date +%F_%T)] [$host_only] $line"
+        done
+    fi
+
+    echo "Alien scan complete for #$loc_num ($mode)."
 }
 
 # Function to backup a location
@@ -64,10 +113,14 @@ EOF
 backup_location() {
     echo "Backing up location $1: $2"
     # Get most recent backup #
-    next_num=$(ls ./backups/$1 | sort -nr | head -n 1)
+    next_num=$(ls "./backups/$1" 2>/dev/null | sort -nr | head -n 1)
+    if [ -z "$next_num" ]; then
+    	next_num=0
+    fi
     next_num=$((next_num + 1))
     back_loc="./backups/$1/$next_num/"
     mkdir -p "$back_loc" # Create folders as needed
+    # Exclude the base alien files (only grab compressed copies)
     rsync -ah --exclude=*.xyzar --info=progress2 "$2/" "$back_loc"
     echo "Backup created at $back_loc"
 }
@@ -80,6 +133,12 @@ backup_location() {
 restore_location() {
     echo "Restoring backup $3 to location $1: $2"
     res_loc="./backups/$1/$3/"
+
+    if [ ! -d "$res_loc" ]; then
+    	echo "ERROR: Backup directory $res_loc does not exist.  Cannot proceed with restore."
+    	exit 1
+    fi
+
     rsync -ah --info=progress2 "$res_loc" "$2"
     echo "Restoration complete for: $1: $2"
 }
