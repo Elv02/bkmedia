@@ -31,9 +31,9 @@ Example:
 ./bkmedia.sh -B -L 2
 
 # Restore backup #3 to line 1
-./bkmedia.sh -R 3 -L 1```
-
-#Known Limitations / TODOs
+./bkmedia.sh -R 3 -L 1
+```
+# Known Limitations / TODOs
 
 1. One Restore per Run
     The script exits immediately after the first restore operation completes.
