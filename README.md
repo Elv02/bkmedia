@@ -27,10 +27,10 @@ Example:
 # Backup all locations
 ./bkmedia.sh -B
 
-# Backup only line 2
+# Backup only location 2
 ./bkmedia.sh -B -L 2
 
-# Restore backup #3 to line 1
+# Restore backup #3 to location 1
 ./bkmedia.sh -R 3 -L 1
 ```
 # Known Limitations / TODOs

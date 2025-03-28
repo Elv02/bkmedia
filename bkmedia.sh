@@ -18,7 +18,7 @@ wake_up(){
 	while (( remaining_attemps-- > 0 ))
 	do
 		# Attempt simple SSH command with immediate return
-		ssh -o COnnectTimeout=5 "$host_only" "exit 0" >/dev/null 2>&1
+		ssh -o ConnectTimeout=5 "$host_only" "exit 0" >/dev/null 2>&1
 		if [ $? -eq 0 ]; then
 			echo "Host $host_only is now awake."
 			return 0
@@ -123,25 +123,46 @@ backup_location() {
     echo "Backup created at $back_loc"
 }
 
-# Function to restore a location
+# Function that restores a location
 # Arguments:
 #   $1 - Location number
 #   $2 - Location path
 #   $3 - Backup number
 restore_location() {
-    echo "Restoring backup $3 to location $1: $2"
-    res_loc="./backups/$1/$3/"
+    local loc_num="$1"
+    local loc_path="$2"
+    local nth_most_recent="$3"
 
-    if [ ! -d "$res_loc" ]; then
-    	echo "ERROR: Backup directory $res_loc does not exist.  Cannot proceed with restore."
-    	exit 1
+    echo "Restoring backup number $nth_most_recent from the most recent backup for location $loc_num: $loc_path"
+
+    # Grab all backup folders for this location and sort them in descending order
+    local folder_list
+    folder_list=$(ls "./backups/$loc_num" 2>/dev/null | sort -nr)
+
+    # Pick out the Nth line (the Nth most recent folder)
+    local actual_folder
+    actual_folder=$(echo "$folder_list" | sed -n "${nth_most_recent}p")
+
+    # If actual_folder is empty, it means there isn't that many backups
+    if [ -z "$actual_folder" ]; then
+        echo "ERROR: There are only $(echo "$folder_list" | wc -l) backups for location #$loc_num."
+        echo "Cannot restore the $nth_most_recent-th most recent backup."
+        exit 1
     fi
 
-    rsync -ah --info=progress2 "$res_loc" "$2"
-    echo "Restoration complete for: $1: $2"
+    local res_loc="./backups/$loc_num/$actual_folder"
+
+    if [ ! -d "$res_loc" ]; then
+        echo "ERROR: Backup directory $res_loc does not exist. Cannot proceed."
+        exit 1
+    fi
+
+    # Perform the actual restore
+    rsync -ah --info=progress2 "$res_loc/" "$loc_path"
+    echo "Restoration complete for location #$loc_num: $loc_path (used folder $actual_folder)."
 }
 
-# Function to process command line arguments
+# Function which processes command line arguments
 process_arguments() {
     while getopts ${OPTSTRING} opt; do
         case $opt in
@@ -166,7 +187,7 @@ process_arguments() {
     done
 }
 
-# Function to validate arguments
+# Function which validates command line arguments
 validate_arguments() {
     if $backup_flag && [ -n "$restore_number" ]; then
         echo "Error: Please specify whether you want to perform a backup or restore operation, not both."
@@ -181,7 +202,9 @@ validate_arguments() {
 
 # Function to process locations from the config file
 process_locations() {
-    while IFS= read -r line; do
+	# Open a unique FD for input (important later for SSH to use stdin)
+	exec 3<"$input"
+    while IFS= read -r line <&3; do
         ((line_number++))
         if $backup_flag; then
             if [ -z "$location_number" ] || [ "$location_number" -eq "$line_number" ]; then
@@ -205,7 +228,9 @@ process_locations() {
             # If no arguments passed, print location with line number
             echo "$line_number $line"
         fi
-    done < "$input"
+    done
+    # Close the FD
+    exec 3<&-
 }
 
 # Main script execution
