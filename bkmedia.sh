@@ -79,6 +79,7 @@ alien_scan() {
             for file in "${files[@]}"; do
                 tar -xvzf "$file"
                 echo "RESTORED: $file"
+                rm "$file"
             done
         '
     fi
